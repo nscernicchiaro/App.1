@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2a2d30">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Medição">
+<title>Medição de Campo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script>
+/* ===== CONFIGURAÇÃO =====
+   Cole aqui a URL do App da Web do Google Apps Script (termina em /exec).
+   Se deixar vazio, o app pede a URL na primeira vez que abrir. */
+const API_URL_PADRAO = 'https://script.google.com/macros/s/AKfycbzhV4LqP5H5O5Ppbsc10Cs_0pPTsu6OGAn-zRicm0VyoWElWsps35ImXvVdno9i-mji/exec';
+</script>
+<style>
+:root{
+  --bg:#e4e6e8; --surface:#f5f6f7; --ink:#2a2d30; --muted:#5e646a; --line:#c9cdd1;
+  --accent:#d7262b; --accent-ink:#ffffff; --accent-soft:#fbe3e3;
+  --pend:#8a5a00; --pend-line:#d9a300; --pend-soft:#fff2cc;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --danger:#a8191e; --warn:#8a5a00; --ret:#1d6a86; --ret-soft:#e0eff5;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --brand:#eb2325; --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#1b1d1f; --surface:#26292c; --ink:#e8eaec; --muted:#a2a8ad; --line:#3b3f43;
+  --accent:#e5383d; --accent-ink:#ffffff; --accent-soft:#3e1d1e; --pend:#f0c040; --pend-line:#b8901c; --pend-soft:#3a300f;
+  --ok:#5cc58f; --ok-soft:#163626; --danger:#ff8a80; --warn:#f0c040; --ret:#6cc3e0; --ret-soft:#12313d; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--f-body);margin:0;padding-top:env(safe-area-inset-top,0px)}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 110px}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-block:14px 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font:700 1.6rem/1 var(--f-display);margin:0;text-transform:uppercase}
+h1 span{background:var(--brand);color:#fff;padding:0 .25em;margin-right:.15em}
+.who{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{font:600 .78rem var(--f-body);border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:var(--surface)}
+.chip.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.chip.pend{color:var(--pend);border-color:var(--pend-line);background:var(--pend-soft)}
+.chip.off{color:var(--muted)}
+.obra{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+label{display:block;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;min-height:46px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+h2{font:700 1.25rem/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.03em;margin:22px 0 10px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.btn{font:600 1rem var(--f-body);border-radius:var(--r);padding:12px 16px;min-height:48px;cursor:pointer;background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font:700 1.2rem var(--f-display);text-transform:uppercase;letter-spacing:.05em;width:100%;min-height:56px}
+.btn.primary:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:.88rem}
+.btn.link{border:0;background:none;color:var(--muted);text-decoration:underline;min-height:36px;padding:4px}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.danger.armed{background:var(--danger);color:var(--surface)}
+.items{display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:var(--r);background:var(--surface);max-height:280px;overflow:auto}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;text-align:left;padding:12px;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;cursor:pointer;min-height:52px}
+.item:last-child{border-bottom:0}
+.item[aria-pressed="true"]{background:var(--accent-soft);box-shadow:inset 4px 0 0 var(--accent)}
+.code{font:500 .8rem var(--f-num);color:var(--muted)}
+.unit{font:500 .8rem var(--f-num);border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--muted)}
+.empty{padding:16px;color:var(--muted);font-size:.92rem}
+.qty{position:relative}
+.qty input{font:500 2rem var(--f-num);padding-right:70px;min-height:64px}
+.qty .suffix{position:absolute;right:14px;bottom:18px;font:500 1.1rem var(--f-num);color:var(--muted)}
+.pin{font:500 1.8rem var(--f-num);letter-spacing:.4em;text-align:center}
+.sel{font-size:.95rem;padding:10px 12px;border-radius:8px;background:var(--surface);border:1.5px dashed var(--line);color:var(--muted)}
+.sel.on{border-style:solid;border-color:var(--accent);color:var(--ink)}
+.entry{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+.entry .q{font:500 1.15rem var(--f-num);text-align:right;white-space:nowrap}
+.entry .meta{font-size:.82rem;color:var(--muted)}
+.entry .acts{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:16px}
+.hint{font-size:.88rem;color:var(--muted)}
+.err{color:var(--danger);font-size:.9rem}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{position:relative;background:none;border:0;color:var(--muted);font:700 .8rem var(--f-display);letter-spacing:0;padding:14px 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:58px;cursor:pointer;border-top:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--accent)}
+.badge{position:absolute;top:4px;right:4px;font:500 .7rem var(--f-num);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:1px 7px;margin-left:4px}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;z-index:20;max-width:calc(100% - 32px)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px 14px;min-height:72px;border-radius:var(--r);border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font:700 1.35rem/1 var(--f-display);text-transform:uppercase;letter-spacing:.04em}
+.seg button small{font:400 .82rem/1.3 var(--f-body);text-transform:none;letter-spacing:0;color:var(--muted)}
+.seg button[data-mov="Saída"][aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.seg button[data-mov="Retorno"][aria-checked="true"]{border-color:var(--ret);background:var(--ret-soft);box-shadow:inset 0 0 0 1px var(--ret)}
+.seg .arrow{font-family:var(--f-num);font-size:1.1rem;margin-right:6px}
+.chip.saida{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.chip.retorno{color:var(--ret);border-color:var(--ret);background:var(--ret-soft)}
+.btn.primary.ret{background:var(--ret);border-color:var(--ret);color:#fff}
+.entry .chips{display:flex;gap:6px;align-items:center}
+.unit:empty{display:none}
+.lbl{display:block;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{min-height:44px;padding:8px 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:600 .95rem var(--f-body);cursor:pointer}
+.opt[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.opts .empty{padding:4px 0}
+.step{display:grid;grid-template-columns:64px 1fr 64px;gap:8px}
+.step .btn{font:700 1.6rem var(--f-num);padding:0}
+.step input{text-align:center;font:500 1.8rem var(--f-num);min-height:56px}
+.money{position:relative}
+.money .prefix{position:absolute;left:14px;bottom:20px;font:500 1.1rem var(--f-num);color:var(--muted)}
+.money input{padding-left:52px}
+.chip.tipo{color:var(--muted)}
+tr.grp th{background:var(--bg);color:var(--ink)}
+tr.tot td{font-weight:700}
+.logo{background:#fff;border-radius:var(--r);padding:18px 16px;display:flex;justify-content:center;margin-top:16px;border:1px solid var(--line)}
+.logo img{width:100%;max-width:320px;height:auto;display:block}
+.tbl{overflow-x:auto;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--f-num);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1><span>Medições</span>TR Sul</h1><button class="btn sm" id="btnInstalar" hidden>Instalar app</button></div>
+    <div class="who" id="who" hidden>
+      <b id="whoNome"></b><span class="chip" id="status">…</span>
+      <button class="btn link" id="btnAtualizar">Atualizar itens</button>
+      <button class="btn link" id="btnSair">Sair</button>
+    </div>
+  </header>
+
+  <!-- CONEXÃO (só na primeira vez, se a URL não estiver no código) -->
+  <section id="tela-setup" class="stack" hidden>
+    <h2>Conectar à planilha</h2>
+    <div class="card stack">
+      <p class="hint" style="margin:0">Cole o endereço do App da Web gerado no Google Apps Script. Ele termina em <b>/exec</b>.</p>
+      <div><label for="setupUrl">Endereço da planilha</label><input id="setupUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="err" id="setupErr" hidden></div>
+      <button class="btn primary" id="btnConectar">Conectar</button>
+    </div>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="tela-login" class="stack" hidden>
+    <div class="logo"><img src="logo.png" alt="TR Sul Engenharia — Sinalização e Segurança Viária" width="640" height="297"></div>
+    <h2>Entrar</h2>
+    <div class="card stack">
+      <div><label for="loginNome">Encarregado</label><select id="loginNome"></select></div>
+      <div><label for="loginPin">PIN</label><input id="loginPin" class="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="••••"></div>
+      <div class="err" id="loginErr" hidden></div>
+      <button class="btn primary" id="btnEntrar">Entrar</button>
+      <p class="hint" style="margin:0">O primeiro acesso precisa de internet. Depois o app funciona sem sinal.</p>
+    </div>
+  </section>
+
+  <!-- OBRA (comum a Medir e Material) -->
+    <div class="obra" id="obraBox" hidden>
+      <div><label for="obra">Obra</label><input id="obra" placeholder="Nome da obra"></div>
+      <div><label for="local">Local / frente</label><input id="local" placeholder="Ex.: Bloco B, 2º pav."></div>
+    </div>
+
+  <!-- HORIZONTAL (medição) -->
+  <section id="tela-medir" class="stack" hidden>
+    <h2>1. Escolha o item</h2>
+    <input id="busca" type="search" placeholder="Buscar por código ou descrição" autocomplete="off">
+    <div class="items" id="lista"></div>
+    <h2>2. Digite o quantitativo</h2>
+    <div class="sel" id="selInfo">Nenhum item selecionado</div>
+    <div class="qty"><label for="qtd">Quantidade</label><input id="qtd" inputmode="decimal" placeholder="0,00" autocomplete="off"><span class="suffix" id="qtdUn"></span></div>
+    <div><label for="obs">Observação (opcional)</label><input id="obs" placeholder="Ex.: eixo 3 ao 7"></div>
+    <div class="err" id="medErr" hidden></div>
+    <button class="btn primary" id="btnRegistrar" disabled>Registrar medição</button>
+  </section>
+
+  <!-- MATERIAL -->
+  <section id="tela-mat" class="stack" hidden>
+    <h2>1. Tipo de movimento</h2>
+    <div class="seg" role="radiogroup" aria-label="Tipo de movimento">
+      <button role="radio" data-mov="Saída" aria-checked="true"><span><span class="arrow">↑</span>Saída</span><small>Material saindo para a obra</small></button>
+      <button role="radio" data-mov="Retorno" aria-checked="false"><span><span class="arrow">↓</span>Retorno</span><small>Material voltando ao depósito</small></button>
+    </div>
+    <h2>2. Escolha o material</h2>
+    <input id="buscaMat" type="search" placeholder="Buscar por código ou descrição" autocomplete="off">
+    <div class="items" id="listaMat"></div>
+    <h2>3. Quantidade</h2>
+    <div class="sel" id="selMatInfo">Nenhum material selecionado</div>
+    <div class="qty"><label for="qtdMat">Quantidade</label><input id="qtdMat" inputmode="decimal" placeholder="0" autocomplete="off"><span class="suffix" id="qtdMatUn"></span></div>
+    <div><label for="obsMat">Observação (opcional)</label><input id="obsMat" placeholder="Ex.: placa do caminhão, nº da nota"></div>
+    <div class="err" id="matErr" hidden></div>
+    <button class="btn primary" id="btnRegMat" disabled>Registrar saída</button>
+  </section>
+
+  <!-- VERTICAL -->
+  <section id="tela-vert" class="stack" hidden>
+    <h2>1. Modelo de placa</h2>
+    <input id="buscaPlaca" type="search" placeholder="Buscar modelo (ex.: R-1)" autocomplete="off">
+    <div class="items" id="listaPlaca"></div>
+    <h2>2. Dimensão</h2>
+    <div class="opts" id="optDim" role="radiogroup" aria-label="Dimensão da placa"></div>
+    <h2>3. Postes</h2>
+    <div><p class="lbl">Quantidade de postes</p>
+      <div class="step"><button class="btn" id="posteMenos" aria-label="Menos um poste">−</button><input id="qtdPostes" inputmode="numeric" value="1" aria-label="Quantidade de postes"><button class="btn" id="posteMais" aria-label="Mais um poste">+</button></div></div>
+    <div id="posteDet" class="stack">
+      <div><p class="lbl">Tipo de poste</p><div class="opts" id="optTipo" role="radiogroup" aria-label="Tipo de poste"></div></div>
+      <div><p class="lbl">Altura do poste</p><div class="opts" id="optAlt" role="radiogroup" aria-label="Altura do poste"></div></div>
+    </div>
+    <div><label for="obsVert">Observação (opcional)</label><input id="obsVert" placeholder="Ex.: km 12, lado direito"></div>
+    <div class="err" id="vertErr" hidden></div>
+    <button class="btn primary" id="btnRegVert" disabled>Registrar placa</button>
+  </section>
+
+  <!-- FINANCEIRO -->
+  <section id="tela-fin" class="stack" hidden>
+    <h2>1. Item de despesa</h2>
+    <input id="buscaFin" type="search" placeholder="Buscar item" autocomplete="off">
+    <div class="items" id="listaFin"></div>
+    <h2>2. Quantidade e custo</h2>
+    <div class="sel" id="selFinInfo">Nenhum item selecionado</div>
+    <div class="qty"><label for="qtdFin">Quantidade</label><input id="qtdFin" inputmode="decimal" placeholder="1" autocomplete="off"><span class="suffix" id="qtdFinUn"></span></div>
+    <div class="qty money"><label for="custoFin">Custo total</label><span class="prefix">R$</span><input id="custoFin" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+    <div class="hint" id="finUnit"></div>
+    <div><label for="obsFin">Observação (opcional)</label><input id="obsFin" placeholder="Ex.: nº da nota fiscal, fornecedor"></div>
+    <div class="err" id="finErr" hidden></div>
+    <button class="btn primary" id="btnRegFin" disabled>Registrar despesa</button>
+  </section>
+
+  <!-- LANÇAMENTOS -->
+  <section id="tela-lanc" class="stack" hidden>
+    <h2>Envio</h2>
+    <div class="card stack">
+      <div id="envioTxt" class="hint" style="margin:0"></div>
+      <button class="btn" id="btnEnviar">Enviar agora</button>
+    </div>
+    <h2>Resumo de hoje</h2>
+    <div class="tbl"><table><thead><tr><th>Item</th><th class="n">Total</th></tr></thead><tbody id="resumo"></tbody></table></div>
+    <h2>Lançamentos</h2>
+    <div class="stack" id="lancs"></div>
+  </section>
+</div>
+
+<nav class="tabs" id="tabs" hidden>
+  <button data-tab="medir" aria-selected="true">Horizontal</button>
+  <button data-tab="vert" aria-selected="false">Vertical</button>
+  <button data-tab="mat" aria-selected="false">Material</button>
+  <button data-tab="fin" aria-selected="false">Financeiro</button>
+  <button data-tab="lanc" aria-selected="false">Histórico<span class="badge" id="cnt" hidden>0</span></button>
+</nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const KEY='medicao-campo-app-v1';
+const $=id=>document.getElementById(id);
+const todayISO=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const fmtDate=iso=>iso.split('-').reverse().join('/');
+const fmtN=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:3});
+const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+
+/* ---------- estado salvo no aparelho ---------- */
+let S={url:'',nomes:[],itens:[],materiais:[],placas:[],vopts:{dim:[],tipo:[],alt:[]},finItens:[],user:null,obra:'',local:'',mov:'Saída',vsel:{},meds:[]};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+if(!S.url&&API_URL_PADRAO)S.url=API_URL_PADRAO;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Memória do aparelho cheia: envie as medições')}}
+let tab='medir',selCod=null,selMat=null,selPlaca=null,selFin=null,armed=null,syncing=false;
+function applyData(d){S.itens=d.itens||[];S.materiais=d.materiais||[];S.placas=d.placas||[];S.vopts=d.vertical||{dim:[],tipo:[],alt:[]};S.finItens=d.financeiro||[]}
+const fmtBRL=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+/* ---------- comunicação com a planilha ---------- */
+async function apiGet(){const r=await fetch(S.url,{cache:'no-store'});return r.json()}
+async function apiPost(body){
+  // text/plain evita a verificação CORS extra que o Apps Script não aceita
+  const r=await fetch(S.url,{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  return r.json();
+}
+
+/* ---------- telas ---------- */
+function show(){
+  const scr=!S.url?'setup':!S.user?'login':tab;
+  ['setup','login','medir','vert','mat','fin','lanc'].forEach(x=>$('tela-'+x).hidden=x!==scr);
+  $('obraBox').hidden=!['medir','vert','mat','fin'].includes(scr);
+  $('tabs').hidden=$('who').hidden=!S.user||!S.url;
+  document.querySelector('header.top').hidden=!S.user||!S.url;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab));
+  if(scr==='login')renderLogin();
+  render();
+}
+function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2400)}
+function err(id,msg){$(id).textContent=msg||'';$(id).hidden=!msg}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;armed=null;show();scrollTo(0,0)});
+
+/* setup */
+$('btnConectar').onclick=async()=>{
+  const u=$('setupUrl').value.trim();
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u))return err('setupErr','O endereço deve começar com https://script.google.com e terminar em /exec.');
+  err('setupErr');$('btnConectar').disabled=true;
+  try{S.url=u;const d=await apiGet();if(!d.ok)throw 0;S.nomes=d.encarregados;applyData(d);save();show()}
+  catch(e){S.url='';err('setupErr','Não consegui falar com a planilha. Confira o endereço, se a implantação está como "Qualquer pessoa" e se há internet.')}
+  $('btnConectar').disabled=false;
+};
+
+/* login */
+async function renderLogin(){
+  const sel=$('loginNome');
+  const fill=()=>{const v=sel.value;sel.innerHTML='<option value="">Selecione seu nome</option>';S.nomes.forEach(n=>{const o=document.createElement('option');o.textContent=n;sel.appendChild(o)});sel.value=v};
+  fill();
+  if(navigator.onLine){try{const d=await apiGet();if(d.ok){S.nomes=d.encarregados;applyData(d);save();fill()}}catch(e){}}
+}
+$('btnEntrar').onclick=async()=>{
+  const nome=$('loginNome').value,pin=$('loginPin').value.trim();
+  if(!nome)return err('loginErr','Selecione seu nome.');
+  if(!pin)return err('loginErr','Digite seu PIN.');
+  if(!navigator.onLine)return err('loginErr','Sem internet. O primeiro acesso precisa de sinal.');
+  err('loginErr');$('btnEntrar').disabled=true;
+  try{const d=await apiPost({acao:'login',nome,pin});
+    if(d.ok){S.user={nome:d.nome,pin};applyData(d);save();$('loginPin').value='';tab='medir';show();sync()}
+    else err('loginErr','Nome ou PIN incorretos. Confira com o escritório.');
+  }catch(e){err('loginErr','Não consegui falar com a planilha. Tente de novo.')}
+  $('btnEntrar').disabled=false;
+};
+$('loginPin').addEventListener('keydown',e=>{if(e.key==='Enter')$('btnEntrar').click()});
+let sairArmed=false;
+$('btnSair').onclick=()=>{
+  const pend=S.meds.filter(m=>!m.sent).length;
+  if(pend&&!sairArmed){sairArmed=true;$('btnSair').textContent=`Sair mesmo? ${pend} não enviada(s) ficam aqui`;setTimeout(()=>{sairArmed=false;$('btnSair').textContent='Sair'},4000);return}
+  sairArmed=false;$('btnSair').textContent='Sair';S.user=null;save();show();
+};
+$('btnAtualizar').onclick=async()=>{
+  if(!navigator.onLine)return toast('Sem internet agora');
+  try{const d=await apiGet();if(d.ok){applyData(d);S.nomes=d.encarregados;save();render();toast('Listas atualizadas')}}
+  catch(e){toast('Não consegui atualizar')}
+};
+
+/* medir */
+['obra','local'].forEach(k=>$(k).addEventListener('input',e=>{S[k]=e.target.value;save()}));
+$('busca').addEventListener('input',renderLista);
+function renderPick(box,all,q,selected,onPick,vazio){
+  q=q.trim().toLowerCase();box.textContent='';
+  const list=all.filter(i=>!q||(i.cod+' '+i.desc).toLowerCase().includes(q));
+  if(!all.length){box.innerHTML='<div class="empty">'+vazio+'</div>';return}
+  if(!list.length){box.innerHTML='<div class="empty">Nada encontrado para essa busca.</div>';return}
+  list.forEach(i=>{
+    const b=document.createElement('button');b.className='item';b.setAttribute('aria-pressed',i.cod===selected);
+    b.innerHTML='<span class="code"></span><span></span><span class="unit"></span>';
+    b.children[0].textContent=i.cod;b.children[1].textContent=i.desc;b.children[2].textContent=i.un;
+    b.onclick=()=>onPick(i);
+    box.appendChild(b);
+  });
+}
+function renderLista(){
+  renderPick($('lista'),S.itens,$('busca').value,selCod,i=>{selCod=i.cod;renderLista();renderSel();$('qtd').focus()},
+    'Nenhum item disponível. O escritório cadastra os itens na aba <b>Itens</b> da planilha; depois toque em “Atualizar itens”.');
+}
+function renderSel(){
+  const i=S.itens.find(x=>x.cod===selCod);
+  $('selInfo').className='sel'+(i?' on':'');$('selInfo').textContent=i?`${i.cod} · ${i.desc}`:'Nenhum item selecionado';
+  $('qtdUn').textContent=i?i.un:'';$('btnRegistrar').disabled=!i;
+}
+function parseQ(v){v=v.trim().replace(/\s/g,'');if(!v)return NaN;if(v.includes(','))v=v.replace(/\./g,'').replace(',','.');return Number(v)}
+$('btnRegistrar').onclick=()=>{
+  const i=S.itens.find(x=>x.cod===selCod),q=parseQ($('qtd').value);
+  if(!i)return err('medErr','Escolha um item antes de registrar.');
+  if(!(q>0))return err('medErr','Digite uma quantidade maior que zero. Use vírgula para decimais, ex.: 12,50.');
+  if(!S.obra.trim())return err('medErr','Preencha o nome da obra no topo.');
+  err('medErr');
+  S.meds.unshift({id:uid(),tipo:'medicao',registradoEm:new Date().toISOString(),data:todayISO(),obra:S.obra.trim(),local:S.local.trim(),
+    cod:i.cod,desc:i.desc,un:i.un,qtd:q,obs:$('obs').value.trim(),nome:S.user.nome,sent:false});
+  save();$('qtd').value='';$('obs').value='';
+  toast(`Registrado: ${fmtN(q)} ${i.un}`);render();sync();
+};
+$('qtd').addEventListener('keydown',e=>{if(e.key==='Enter')$('btnRegistrar').click()});
+
+/* material */
+$('buscaMat').addEventListener('input',renderListaMat);
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{S.mov=b.dataset.mov;save();renderMat()});
+function renderListaMat(){
+  renderPick($('listaMat'),S.materiais,$('buscaMat').value,selMat,i=>{selMat=i.cod;renderMat();$('qtdMat').focus()},
+    'Nenhum material disponível. O escritório cadastra os materiais na aba <b>Materiais</b> da planilha; depois toque em “Atualizar itens”.');
+}
+function renderMat(){
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-checked',b.dataset.mov===S.mov));
+  renderListaMat();
+  const i=S.materiais.find(x=>x.cod===selMat);
+  $('selMatInfo').className='sel'+(i?' on':'');$('selMatInfo').textContent=i?`${i.cod} · ${i.desc}`:'Nenhum material selecionado';
+  $('qtdMatUn').textContent=i?i.un:'';
+  const btn=$('btnRegMat');btn.disabled=!i;btn.textContent=S.mov==='Retorno'?'Registrar retorno':'Registrar saída';btn.classList.toggle('ret',S.mov==='Retorno');
+}
+$('btnRegMat').onclick=()=>{
+  const i=S.materiais.find(x=>x.cod===selMat),q=parseQ($('qtdMat').value);
+  if(!i)return err('matErr','Escolha um material antes de registrar.');
+  if(!(q>0))return err('matErr','Digite uma quantidade maior que zero.');
+  if(!S.obra.trim())return err('matErr','Preencha o nome da obra no topo.');
+  err('matErr');
+  S.meds.unshift({id:uid(),tipo:'material',mov:S.mov,registradoEm:new Date().toISOString(),data:todayISO(),obra:S.obra.trim(),local:S.local.trim(),
+    cod:i.cod,desc:i.desc,un:i.un,qtd:q,obs:$('obsMat').value.trim(),nome:S.user.nome,sent:false});
+  save();$('qtdMat').value='';$('obsMat').value='';
+  toast(`${S.mov} registrada: ${fmtN(q)} ${i.un}`);render();sync();
+};
+$('qtdMat').addEventListener('keydown',e=>{if(e.key==='Enter')$('btnRegMat').click()});
+
+/* vertical */
+$('buscaPlaca').addEventListener('input',renderVert);
+function opts(box,list,cur,onPick,vazio){
+  box.textContent='';
+  if(!list.length){box.innerHTML='<div class="empty">'+vazio+'</div>';return}
+  list.forEach(v=>{const b=document.createElement('button');b.className='opt';b.setAttribute('role','radio');b.setAttribute('aria-checked',v===cur);b.textContent=v;b.onclick=()=>onPick(v);box.appendChild(b)});
+}
+const vazioVert='Cadastre as opções na aba <b>Opções Vertical</b> da planilha.';
+function postes(){const n=parseInt($('qtdPostes').value,10);return isNaN(n)||n<0?0:n}
+function renderVert(){
+  renderPick($('listaPlaca'),S.placas,$('buscaPlaca').value,selPlaca,i=>{selPlaca=i.cod;renderVert()},
+    'Nenhuma placa disponível. O escritório cadastra os modelos na aba <b>Placas</b> da planilha; depois toque em “Atualizar itens”.');
+  const v=S.vsel;
+  opts($('optDim'),S.vopts.dim,v.dim,x=>{v.dim=x;save();renderVert()},vazioVert);
+  opts($('optTipo'),S.vopts.tipo,v.tipo,x=>{v.tipo=x;save();renderVert()},vazioVert);
+  opts($('optAlt'),S.vopts.alt,v.alt,x=>{v.alt=x;save();renderVert()},vazioVert);
+  $('posteDet').hidden=postes()===0;
+  $('btnRegVert').disabled=!selPlaca;
+}
+$('posteMenos').onclick=()=>{$('qtdPostes').value=Math.max(0,postes()-1);renderVert()};
+$('posteMais').onclick=()=>{$('qtdPostes').value=postes()+1;renderVert()};
+$('qtdPostes').addEventListener('input',()=>{$('posteDet').hidden=postes()===0});
+$('btnRegVert').onclick=()=>{
+  const p=S.placas.find(x=>x.cod===selPlaca),v=S.vsel,n=postes();
+  if(!p)return err('vertErr','Escolha o modelo de placa.');
+  if(!v.dim)return err('vertErr','Escolha a dimensão da placa.');
+  if(n>0&&!v.tipo)return err('vertErr','Escolha o tipo de poste.');
+  if(n>0&&!v.alt)return err('vertErr','Escolha a altura do poste.');
+  if(!S.obra.trim())return err('vertErr','Preencha o nome da obra no topo.');
+  err('vertErr');
+  S.meds.unshift({id:uid(),tipo:'vertical',registradoEm:new Date().toISOString(),data:todayISO(),obra:S.obra.trim(),local:S.local.trim(),
+    cod:p.cod,desc:p.desc,dim:v.dim,postes:n,tipoPoste:n>0?v.tipo:'',altura:n>0?v.alt:'',obs:$('obsVert').value.trim(),nome:S.user.nome,sent:false});
+  save();$('obsVert').value='';selPlaca=null;
+  toast(`Registrada: placa ${p.cod}, ${n} poste(s)`);render();sync();
+};
+
+/* financeiro */
+$('buscaFin').addEventListener('input',renderFin);
+['qtdFin','custoFin'].forEach(id=>$(id).addEventListener('input',unitFin));
+function unitFin(){const q=parseQ($('qtdFin').value||'1'),c=parseQ($('custoFin').value),i=S.finItens.find(x=>x.cod===selFin);
+  $('finUnit').textContent=i&&q>0&&c>0?`= ${fmtBRL(c/q)} por ${i.un||'unidade'}`:''}
+function renderFin(){
+  renderPick($('listaFin'),S.finItens,$('buscaFin').value,selFin,i=>{selFin=i.cod;renderFin();$('qtdFin').focus()},
+    'Nenhum item disponível. O escritório cadastra os itens na aba <b>Itens Financeiro</b> da planilha; depois toque em “Atualizar itens”.');
+  const i=S.finItens.find(x=>x.cod===selFin);
+  $('selFinInfo').className='sel'+(i?' on':'');$('selFinInfo').textContent=i?`${i.cod} · ${i.desc}`:'Nenhum item selecionado';
+  $('qtdFinUn').textContent=i?i.un:'';$('btnRegFin').disabled=!i;unitFin();
+}
+$('btnRegFin').onclick=()=>{
+  const i=S.finItens.find(x=>x.cod===selFin),q=parseQ($('qtdFin').value||'1'),c=parseQ($('custoFin').value);
+  if(!i)return err('finErr','Escolha o item de despesa.');
+  if(!(q>0))return err('finErr','Digite uma quantidade maior que zero.');
+  if(!(c>0))return err('finErr','Digite o custo em reais, ex.: 120,50.');
+  if(!S.obra.trim())return err('finErr','Preencha o nome da obra no topo.');
+  err('finErr');
+  S.meds.unshift({id:uid(),tipo:'financeiro',registradoEm:new Date().toISOString(),data:todayISO(),obra:S.obra.trim(),local:S.local.trim(),
+    cod:i.cod,desc:i.desc,un:i.un,qtd:q,custo:Math.round(c*100)/100,obs:$('obsFin').value.trim(),nome:S.user.nome,sent:false});
+  save();$('qtdFin').value='';$('custoFin').value='';$('obsFin').value='';
+  toast(`Registrado: ${i.desc} ${fmtBRL(c)}`);render();sync();
+};
+
+/* sincronização */
+async function sync(){
+  if(syncing||!S.user||!S.url)return renderStatus();
+  const pend=S.meds.filter(m=>!m.sent&&m.nome===S.user.nome);
+  if(!pend.length||!navigator.onLine)return renderStatus();
+  syncing=true;renderStatus();
+  try{
+    const d=await apiPost({acao:'enviar',nome:S.user.nome,pin:S.user.pin,medicoes:pend.slice(0,200)});
+    if(d.ok){const ok=new Set(d.recebidos);S.meds.forEach(m=>{if(ok.has(m.id))m.sent=true});
+      // mantém só os últimos 30 dias de medições já enviadas
+      const lim=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+      S.meds=S.meds.filter(m=>!m.sent||m.data>=lim);save();
+      if(ok.size)toast(`${ok.size} registro(s) enviado(s) à planilha`);
+    }else if(d.erro==='pin'){S.user=null;save();show();err('loginErr','Seu PIN mudou ou foi desativado. Entre de novo; as medições pendentes continuam guardadas.')}
+  }catch(e){}
+  syncing=false;render();
+  if(S.meds.some(m=>!m.sent&&S.user&&m.nome===S.user.nome)&&navigator.onLine)setTimeout(sync,15000);
+}
+function renderStatus(){
+  const pend=S.user?S.meds.filter(m=>!m.sent&&m.nome===S.user.nome).length:0,st=$('status');
+  if(syncing){st.className='chip pend';st.textContent='Enviando…'}
+  else if(!navigator.onLine){st.className='chip off';st.textContent=pend?`Sem sinal · ${pend} guardada(s)`:'Sem sinal'}
+  else if(pend){st.className='chip pend';st.textContent=`${pend} pendente(s)`}
+  else{st.className='chip ok';st.textContent='Tudo enviado'}
+  $('cnt').hidden=!pend;$('cnt').textContent=pend;
+  $('envioTxt').textContent=pend?`${pend} registro(s) aguardando envio. Eles são enviados sozinhos quando houver internet e o app estiver aberto.`:'Todos os registros foram enviados para a planilha.';
+  $('btnEnviar').disabled=!pend||syncing;
+}
+$('btnEnviar').onclick=()=>{if(!navigator.onLine)return toast('Sem internet agora');sync()};
+addEventListener('online',sync);addEventListener('offline',renderStatus);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+setInterval(sync,60000);
+
+/* lançamentos */
+const ROTULO={medicao:'Horizontal',vertical:'Vertical',material:'Material',financeiro:'Financeiro'};
+function info(m){const t=m.tipo||'medicao';
+  if(t==='vertical')return{t,titulo:[m.desc,m.dim].filter(Boolean).join(' · '),qtd:`${m.postes} poste${m.postes==1?'':'s'}`,extra:m.postes>0?[m.tipoPoste,m.altura].filter(Boolean).join(' '):''};
+  if(t==='financeiro')return{t,titulo:m.desc,qtd:fmtBRL(m.custo),extra:fmtN(m.qtd)+' '+m.un};
+  return{t,titulo:m.desc,qtd:fmtN(m.qtd)+' '+m.un,extra:''};}
+function renderLanc(){
+  if(!S.user)return;
+  const mine=S.meds.filter(m=>m.nome===S.user.nome),hoje=todayISO();
+  const ordem=['medicao','vertical','material','financeiro'],grupos={};
+  mine.filter(m=>m.data===hoje).forEach(m=>{const t=m.tipo||'medicao',g=grupos[t]||(grupos[t]=new Map());
+    const k=t==='vertical'?m.cod+'|'+m.dim:m.cod;const o=g.get(k)||{m,q:0,s:0,r:0,n:0,p:0,c:0};
+    o.q+=m.qtd||0;o.n++;o.p+=m.postes||0;o.c+=m.custo||0;if(t==='material'){if(m.mov==='Retorno')o.r+=m.qtd;else o.s+=m.qtd}g.set(k,o)});
+  const tb=$('resumo');tb.textContent='';
+  const linha=(a,b,cls)=>{const tr=document.createElement('tr');if(cls)tr.className=cls;tr.innerHTML='<td><span class="code"></span> <span></span></td><td class="n"></td>';
+    tr.querySelector('.code').textContent=a[0];tr.children[0].lastChild.textContent=a[1];tr.children[1].textContent=b;tb.appendChild(tr)};
+  let algum=false;
+  ordem.forEach(t=>{const g=grupos[t];if(!g)return;algum=true;
+    const h=document.createElement('tr');h.className='grp';h.innerHTML='<th colspan="2"></th>';h.firstChild.textContent=ROTULO[t];tb.appendChild(h);
+    let total=0;
+    [...g.values()].sort((a,b)=>a.m.cod.localeCompare(b.m.cod,'pt',{numeric:true})).forEach(o=>{const m=o.m;
+      if(t==='medicao')linha([m.cod,m.desc],fmtN(o.q)+' '+m.un);
+      else if(t==='material')linha([m.cod,m.desc],[o.s?'↑ '+fmtN(o.s):'',o.r?'↓ '+fmtN(o.r):''].filter(Boolean).join('  ')+' '+m.un);
+      else if(t==='vertical')linha([m.cod,m.dim],`${o.n} placa${o.n>1?'s':''} · ${o.p} poste${o.p==1?'':'s'}`);
+      else{linha([m.cod,m.desc],fmtBRL(o.c));total+=o.c}});
+    if(t==='financeiro')linha(['','Total do dia'],fmtBRL(total),'tot');
+  });
+  if(!algum)tb.innerHTML='<tr><td colspan="2" class="empty">Nenhum registro hoje.</td></tr>';
+  const box=$('lancs');box.textContent='';
+  if(!mine.length)box.innerHTML='<div class="empty">Seus registros aparecem aqui.</div>';
+  mine.forEach(m=>{const f=info(m);
+    const d=document.createElement('div');d.className='entry';
+    d.innerHTML='<div><span class="code"></span> <b></b></div><div class="q"></div><div class="meta"></div><div></div><div class="acts"><span class="chips"><span class="chip st"></span></span><span></span></div>';
+    d.querySelector('.code').textContent=m.cod;d.querySelector('b').textContent=f.titulo;
+    d.querySelector('.q').textContent=f.qtd;
+    d.querySelector('.meta').textContent=[f.extra,fmtDate(m.data),m.obra,m.local,m.obs].filter(Boolean).join(' · ');
+    const c=d.querySelector('.acts .st');c.className='chip st '+(m.sent?'ok':'pend');c.textContent=m.sent?'Enviado':'Pendente';
+    const k=document.createElement('span');
+    if(f.t==='material'){k.className='chip '+(m.mov==='Retorno'?'retorno':'saida');k.textContent=(m.mov==='Retorno'?'↓ ':'↑ ')+m.mov}
+    else{k.className='chip tipo';k.textContent=ROTULO[f.t]}
+    c.before(k);
+    if(!m.sent){const b=document.createElement('button');b.className='btn sm danger'+(armed===m.id?' armed':'');
+      b.textContent=armed===m.id?'Toque de novo para excluir':'Excluir';
+      b.onclick=()=>{if(armed===m.id){S.meds=S.meds.filter(x=>x.id!==m.id);armed=null;save();toast('Registro excluído')}else armed=m.id;render()};
+      d.querySelector('.acts').lastChild.replaceWith(b)}
+    box.appendChild(d);
+  });
+}
+
+function render(){
+  if(S.user){$('whoNome').textContent=S.user.nome;['obra','local'].forEach(k=>{if($(k).value!==(S[k]||''))$(k).value=S[k]||''})}
+  renderLista();renderSel();renderVert();renderMat();renderFin();renderLanc();renderStatus();
+}
+
+/* instalação (Android/Chrome) */
+let installEvt=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;$('btnInstalar').hidden=false});
+$('btnInstalar').onclick=async()=>{if(!installEvt)return;installEvt.prompt();await installEvt.userChoice;installEvt=null;$('btnInstalar').hidden=true};
+if('serviceWorker' in navigator&&location.hostname!=='app.medicao.local')navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+show();sync();
+</script>
+</body>
+</html>
